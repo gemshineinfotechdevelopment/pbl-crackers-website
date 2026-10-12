@@ -1,0 +1,58 @@
+import mongoose from 'mongoose';
+
+const categorySchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    categoryCode: {
+      type: String,
+      unique: true,
+      required: true
+    },
+    slug: {
+      type: String,
+      unique: true,
+      lowercase: true
+    },
+    icon: {
+      type: String,
+      default: ''
+    },
+    image: {
+      type: String,
+      default: ''
+    },
+    description: {
+      type: String,
+      trim: true
+    },
+    productCount: {
+      type: Number,
+      default: 0
+    },
+    isActive: {
+      type: Boolean,
+      default: true
+    },
+    displayOrder: {
+      type: Number,
+      default: 0
+    }
+  },
+  { timestamps: true }
+);
+
+categorySchema.pre('save', function(next) {
+  if (!this.slug && this.name) {
+    this.slug = this.name.toLowerCase().replace(/\s+/g, '-');
+  }
+  if (typeof next === 'function') next();
+});
+
+// Case-insensitive unique index on name to prevent duplicates like 'Sparklers' vs 'sparklers'
+categorySchema.index({ name: 1 }, { unique: true, collation: { locale: 'en', strength: 2 } });
+
+export default mongoose.model('Category', categorySchema);

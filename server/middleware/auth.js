@@ -1,0 +1,51 @@
+import jwt from 'jsonwebtoken';
+import { AppError } from './errorHandler.js';
+
+export const auth = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+
+  if (!token) {
+    return next(new AppError('No token provided', 401));
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'saiyogi_jwt_secret_key_2026');
+    req.userId = decoded.id;
+    req.userPhone = decoded.phone;
+    req.role = decoded.role;
+    next();
+  } catch (error) {
+    next(new AppError('Invalid token', 401));
+  }
+};
+
+export const adminOnly = (req, res, next) => {
+  const roleUpper = String(req.role || '').toUpperCase();
+  if (roleUpper !== 'SUPER ADMIN' && roleUpper !== 'ADMIN') {
+    return next(new AppError('Admin access required', 403));
+  }
+  next();
+};
+
+export const authorize = (...roles) => (req, res, next) => {
+  if (roles.length > 0 && !roles.includes(req.role)) {
+    return next(new AppError('Unauthorized access', 403));
+  }
+  next();
+};
+
+export const optionalAuth = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'saiyogi_jwt_secret_key_2026');
+      req.userId = decoded.id;
+      req.userPhone = decoded.phone;
+      req.role = decoded.role;
+    } catch (error) {
+      // Token invalid but not required - continue
+    }
+  }
+  next();
+};

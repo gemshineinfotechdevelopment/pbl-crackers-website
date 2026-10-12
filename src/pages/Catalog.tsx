@@ -1,0 +1,389 @@
+import { useSearchParams } from "react-router-dom";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { getProducts, getCategories } from "@/lib/api";
+import { Product, Category } from "@/data/products";
+import { useSiteSettings, getDiscountPrice } from "@/context/SiteSettingsContext";
+import { useCart } from "@/context/CartContext";
+import ProductCard from "@/components/ProductCard";
+import UserHeader from "@/components/layout/UserHeader";
+import UserFooter from "@/components/layout/UserFooter";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Search, X, Filter } from "lucide-react";
+import ProductLoadingSkeleton from "@/components/ui/ProductLoadingSkeleton";
+
+const Catalog = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Filter States
+  const [selectedBrand, setSelectedBrand] = useState<string>("All Brands");
+  const [selectedCategory, setSelectedCategory] = useState<string>("All Categories");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [sortBy, setSortBy] = useState<string>("default");
+
+  const { settings } = useSiteSettings();
+  const { items } = useCart();
+  const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Cart totals calculation
+  const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
+  const totalPrice = items.reduce((acc, item) => {
+    const dp = getDiscountPrice(
+      item.product.price,
+      item.product.hasDiscount,
+      settings.discountPercent,
+      item.product.netRate,
+      item.product.displayNetRate
+    );
+    return acc + dp * item.quantity;
+  }, 0);
+
+  useEffect(() => {
+    const loadAll = () => {
+      Promise.all([getProducts(), getCategories()])
+        .then(([prods, cats]) => {
+          setProducts(Array.isArray(prods) ? prods : []);
+          setCategories(Array.isArray(cats) ? cats : []);
+        })
+        .catch((err) => {
+          console.error('Failed to fetch products/categories (Catalog):', err);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    };
+
+    loadAll();
+
+    const interval = setInterval(loadAll, 5000);
+    const onFocus = () => loadAll();
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, []);
+
+  // Sync state from searchParams on mount or param change
+  useEffect(() => {
+    const catParam = searchParams.get("category");
+    const searchParam = searchParams.get("search");
+    const brandParam = searchParams.get("brand");
+
+    if (searchParam !== null) {
+      setSearchQuery(searchParam);
+    }
+    if (brandParam !== null) {
+      setSelectedBrand(brandParam);
+    }
+    if (catParam !== null && catParam !== "all") {
+      // Find category name by id or slug
+      const found = categories.find(c => {
+        const cId = c._id || c.id;
+        const slug = c.name.toLowerCase().replace(/\s+/g, '-');
+        return cId === catParam || slug === catParam.toLowerCase() || c.name.toLowerCase() === catParam.toLowerCase();
+      });
+      if (found) {
+        setSelectedCategory(found.name);
+      } else {
+        setSelectedCategory(catParam);
+      }
+    } else if (catParam === "all") {
+      setSelectedCategory("All Categories");
+    }
+  }, [searchParams, categories]);
+
+  // Derived filter options
+  const uniqueBrands = useMemo(() => {
+    const brands = new Set(products.map(p => p.brand).filter(Boolean));
+    return ["All Brands", ...Array.from(brands)];
+  }, [products]);
+
+  const uniqueCategoryNames = useMemo(() => {
+    const sortedCats = [...categories].sort((a, b) => {
+      const codeA = parseInt(a.categoryCode || '', 10);
+      const codeB = parseInt(b.categoryCode || '', 10);
+      if (!isNaN(codeA) && !isNaN(codeB)) {
+        return codeA - codeB;
+      }
+      return String(a.categoryCode || '').localeCompare(String(b.categoryCode || ''), undefined, { numeric: true });
+    });
+    const names = sortedCats.map(c => c.name);
+    const set = new Set(["All Categories", ...names, "Day Crackers", "Night Crackers", "Kids Crackers", "Gift Box", "Combo Packs"]);
+    return Array.from(set);
+  }, [categories]);
+
+  // Filtered and Sorted products
+  const filtered = useMemo(() => {
+    let result = products;
+
+    if (selectedBrand !== "All Brands") {
+      result = result.filter(p => p.brand === selectedBrand);
+    }
+
+    if (selectedCategory !== "All Categories") {
+      const selLow = selectedCategory.toLowerCase();
+      result = result.filter((p) => {
+        const cat = p.category as any;
+        const catId = typeof cat === 'object' && cat !== null ? (cat._id || cat.id || cat) : cat;
+        const catName = typeof cat === 'object' && cat !== null ? (cat.name || '') : (categories.find(c => (c._id || c.id) === catId)?.name || String(catId || ''));
+
+        // Direct category name or ID match
+        if (catName && catName.toLowerCase() === selLow) return true;
+        if (catId && String(catId).toLowerCase() === selLow) return true;
+
+        // Semantic fallbacks for common types
+        if (selLow === "day crackers" || selLow === "day") {
+          return p.crackerType === "Day Crackers" || !p.crackerType || (catName && catName.toLowerCase().includes("day"));
+        }
+        if (selLow === "night crackers" || selLow === "night") {
+          return p.crackerType === "Night Crackers" || (catName && catName.toLowerCase().includes("night"));
+        }
+        if (selLow === "kids crackers" || selLow === "kids") {
+          return p.crackerType === "Kids Crackers" || p.name.toLowerCase().includes("kid") || (catName && catName.toLowerCase().includes("kid"));
+        }
+        if (selLow === "gift box" || selLow === "giftbox" || selLow === "gift box crackers") {
+          return p.crackerType === "Gift Box" || p.name.toLowerCase().includes("gift") || p.name.toLowerCase().includes("box") || (catName && (catName.toLowerCase().includes("gift") || catName.toLowerCase().includes("box")));
+        }
+        if (selLow.includes("combo")) {
+          return catName.toLowerCase().includes("combo") || p.name.toLowerCase().includes("combo") || p.name.toLowerCase().includes("pack");
+        }
+
+        return false;
+      });
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((p) => {
+        const cat = p.category as any;
+        const catName = typeof cat === 'object' && cat !== null ? (cat.name || '') : (cat || '');
+        return p.name.toLowerCase().includes(q) ||
+        (p.brand && p.brand.toLowerCase().includes(q)) ||
+        (catName && catName.toLowerCase().includes(q));
+      }).sort((a, b) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+        const aStarts = aName.startsWith(q);
+        const bStarts = bName.startsWith(q);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        return 0;
+      });
+    }
+
+    if (sortBy === "price-low") {
+      result = [...result].sort((a, b) => getDiscountPrice(a.price, a.hasDiscount, settings.discountPercent, a.netRate, a.displayNetRate) - getDiscountPrice(b.price, b.hasDiscount, settings.discountPercent, b.netRate, b.displayNetRate));
+    } else if (sortBy === "price-high") {
+      result = [...result].sort((a, b) => getDiscountPrice(b.price, b.hasDiscount, settings.discountPercent, b.netRate, b.displayNetRate) - getDiscountPrice(a.price, a.hasDiscount, settings.discountPercent, a.netRate, a.displayNetRate));
+    } else if (!searchQuery.trim()) {
+      // Default: Sort ascending by categoryCode / order, then product sku/code
+      const getCategoryOrder = (p: Product) => {
+        const cat = p.category as any;
+        const catId = typeof cat === 'object' && cat !== null ? (cat._id || cat.id) : cat;
+        const catName = typeof cat === 'object' && cat !== null ? cat.name : '';
+        const found = categories.find(c => (c._id || c.id) === catId || (catName && c.name.toLowerCase() === catName.toLowerCase()));
+        if (found) {
+          const num = parseInt(found.categoryCode || '', 10);
+          return !isNaN(num) ? num : (found.displayOrder !== undefined ? found.displayOrder : 999);
+        }
+        return 9999;
+      };
+
+      result = [...result].sort((a, b) => {
+        const catOrderA = getCategoryOrder(a);
+        const catOrderB = getCategoryOrder(b);
+        if (catOrderA !== catOrderB) {
+          return catOrderA - catOrderB;
+        }
+        const skuA = String(a.sku || a.code || '');
+        const skuB = String(b.sku || b.code || '');
+        const numA = parseInt(skuA, 10);
+        const numB = parseInt(skuB, 10);
+        if (!isNaN(numA) && !isNaN(numB)) {
+          return numA - numB;
+        }
+        return skuA.localeCompare(skuB, undefined, { numeric: true });
+      });
+    }
+
+    return result;
+  }, [products, categories, selectedBrand, selectedCategory, searchQuery, sortBy, settings.discountPercent]);
+
+  const handleCategorySelect = (catName: string) => {
+    setSelectedCategory(catName);
+    const params = new URLSearchParams(searchParams);
+    if (catName === "All Categories") {
+      params.delete("category");
+    } else {
+      const foundCat = categories.find(c => c.name === catName);
+      if (foundCat) {
+        params.set("category", foundCat._id || foundCat.id || catName);
+      } else {
+        params.set("category", catName);
+      }
+    }
+    setSearchParams(params);
+  };
+
+  const handleBrandSelect = (brand: string) => {
+    setSelectedBrand(brand);
+    const params = new URLSearchParams(searchParams);
+    if (brand === "All Brands") {
+      params.delete("brand");
+    } else {
+      params.set("brand", brand);
+    }
+    setSearchParams(params);
+  };
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    const params = new URLSearchParams(searchParams);
+    if (query) {
+      params.set("search", query);
+    } else {
+      params.delete("search");
+    }
+    setSearchParams(params, { replace: true });
+  };
+
+  const toggleQuickSearch = () => {
+    setIsQuickSearchOpen(!isQuickSearchOpen);
+    if (!isQuickSearchOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 100);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col relative bg-[#FFFDF2] text-[#1F2937]" style={{ backgroundColor: '#FFFDF2' }}>
+      <UserHeader
+        catalogFilters={{
+          selectedCategory,
+          setSelectedCategory: handleCategorySelect,
+          uniqueCategoryNames,
+          searchQuery,
+          setSearchQuery: handleSearchChange,
+        }}
+      />
+
+      {/* Search Overlay for "Search without scrolling" */}
+      <div className={cn(
+        "fixed inset-0 z-[60] flex items-start justify-center pt-20 bg-black/40 backdrop-blur-sm transition-all duration-300",
+        isQuickSearchOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+      )}>
+        <div className={cn(
+          "w-full max-w-2xl mx-4 transition-all duration-300 transform",
+          isQuickSearchOpen ? "translate-y-0 scale-100" : "-translate-y-8 scale-95"
+        )}>
+          <div className="flex justify-end mb-3">
+            <button
+              onClick={() => setIsQuickSearchOpen(false)}
+              className="bg-red-600 text-white p-2 rounded-full shadow-xl hover:bg-red-700 active:scale-90 transition-all flex items-center gap-2 px-5"
+            >
+              <X className="h-5 w-5" />
+              <span className="font-bold text-sm">Close Search</span>
+            </button>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-2xl border-2 border-red-200 overflow-hidden">
+            <div className="p-4 flex items-center gap-3">
+              <Search className="h-6 w-6 text-red-600" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="flex-1 bg-transparent border-none outline-none text-xl text-red-900 placeholder:text-red-300 font-display font-medium"
+              />
+              <Button variant="ghost" size="icon" onClick={() => setIsQuickSearchOpen(false)} className="rounded-full hover:bg-red-100 text-red-600">
+                <X className="h-6 w-6" />
+              </Button>
+            </div>
+            <div className="px-4 pb-4 border-t border-red-100">
+              <div className="pt-2 text-xs font-semibold text-red-400 uppercase tracking-wider">Quick Results ({filtered.length})</div>
+              <div className="mt-2 max-h-[40vh] overflow-y-auto custom-scrollbar">
+                {filtered.slice(0, 5).map(p => {
+                  const cat = p.category as any;
+                  const catId = typeof cat === 'object' && cat !== null ? (cat._id || cat.id) : cat;
+                  const catFallbackName = typeof cat === 'object' && cat !== null ? cat.name : cat;
+                  const categoryName = categories.find(c => (c._id || c.id) === catId)?.name || catFallbackName;
+                  const stockVal = p.storeStockPieces !== undefined ? p.storeStockPieces : (p.stock !== undefined ? p.stock : 0);
+                  const displayImg = stockVal <= 0 ? '/logo.png' : (p.image || '/logo.png');
+                  return (
+                    <div key={p._id || p.id} className="flex items-center gap-3 p-2 hover:bg-red-50 rounded-lg cursor-pointer transition-colors" onClick={() => setIsQuickSearchOpen(false)}>
+                      <img src={displayImg} alt={p.name} className="h-10 w-10 object-cover rounded" />
+                      <div>
+                        <div className="font-semibold text-red-900">{p.name}</div>
+                        <div className="text-xs text-red-600">{categoryName}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {filtered.length === 0 && <div className="p-4 text-center text-red-400">No products match your search</div>}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <main className="container pb-12 flex-1 pt-[140px] lg:pt-[105px]">
+        {loading ? (
+          <ProductLoadingSkeleton mode="grid" count={10} />
+        ) : filtered.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-3.5 md:gap-4 mt-0 animate-in fade-in duration-700">
+            {filtered.map((p) => {
+              const cat = p.category as any;
+              const catId = typeof cat === 'object' && cat !== null ? (cat._id || cat.id) : cat;
+              const catFallbackName = typeof cat === 'object' && cat !== null ? cat.name : cat;
+              return (
+                <ProductCard
+                  key={p._id || p.id}
+                  product={p}
+                  categoryName={categories.find(c => (c._id || c.id) === catId)?.name || catFallbackName}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-32 bg-white/40 backdrop-blur-md rounded-3xl border-2 border-dashed border-amber-200">
+            <div className="inline-flex items-center justify-center h-20 w-20 rounded-full bg-blue-100 text-[#2563EB] mb-6">
+              <Search className="h-10 w-10 opacity-60" />
+            </div>
+            <p className="text-2xl font-display font-bold text-[#1F2937]">No products found</p>
+            <p className="text-gray-500 mt-2 mb-8">Try adjusting your search or filters</p>
+            <Button className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-8 h-12 rounded-xl shadow-lg transition-all hover:-translate-y-1 font-bold" onClick={() => { handleCategorySelect("All Categories"); handleSearchChange(""); }}>Clear All Filters</Button>
+          </div>
+        )}
+      </main>
+      <UserFooter />
+
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(220, 38, 38, 0.1);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(220, 38, 38, 0.2);
+        }
+      `}} />
+    </div>
+  );
+};
+
+export default Catalog;

@@ -1,0 +1,218 @@
+import { useParams, Link } from "react-router-dom";
+import { ShoppingCart, ArrowLeft, Minus, Plus, X, PackageCheck, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { getProductById, getProducts } from "@/lib/api";
+import { Product } from "@/data/products";
+import { useCart } from "@/context/CartContext";
+import { useSiteSettings, getDiscountPrice } from "@/context/SiteSettingsContext";
+import { Button } from "@/components/ui/button";
+import ProductCard from "@/components/ProductCard";
+import { DiscountTag } from "@/components/ui/DiscountTag";
+import UserHeader from "@/components/layout/UserHeader";
+import UserFooter from "@/components/layout/UserFooter";
+import ComboProductsModal from "@/components/ComboProductsModal";
+import { toast } from "sonner";
+
+const ProductDetail = () => {
+  const { id } = useParams();
+  const { addToCart } = useCart();
+  const { settings } = useSiteSettings();
+  const [qty, setQty] = useState(1);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [related, setRelated] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [showComboModal, setShowComboModal] = useState(false);
+
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    getProductById(id)
+      .then((p) => {
+        setProduct(p);
+        return getProducts()
+          .then((all) => {
+            console.log('Products for related:', all, Array.isArray(all));
+            const safeAll = Array.isArray(all) ? all : [];
+            setRelated(safeAll.filter((x) => {
+              const xCat = typeof x.category === 'object' && x.category !== null ? ((x.category as any)._id || (x.category as any).id || x.category) : x.category;
+              const pCat = typeof p.category === 'object' && p.category !== null ? ((p.category as any)._id || (p.category as any).id || p.category) : p.category;
+              return xCat === pCat && x.id !== p.id;
+            }).slice(0, 4));
+          });
+      })
+      .catch((err) => {
+        console.error('Failed to load product details:', err);
+        setProduct(null);
+        setRelated([]);
+      })
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-[#FFFDF2] text-[#1F2937]">
+        <UserHeader />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+        </div>
+        <UserFooter />
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="min-h-screen flex flex-col bg-[#FFFDF2] text-[#1F2937]">
+        <UserHeader />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="font-display text-2xl font-bold mb-4 text-red-900">Product Not Found</h1>
+            <Button asChild className="bg-red-600 hover:bg-red-700 text-white"><Link to="/catalog">Back to Shop</Link></Button>
+          </div>
+        </div>
+        <UserFooter />
+      </div>
+    );
+  }
+
+  const discountPrice = getDiscountPrice(product.price, product.hasDiscount, settings.discountPercent, product.netRate, product.displayNetRate);
+  const discount = product.hasDiscount ? settings.discountPercent : 0;
+
+  const stockVal = product.storeStockPieces !== undefined ? Number(product.storeStockPieces) : (product.stock !== undefined ? Number(product.stock) : 999);
+  const isOutOfStock = stockVal <= 0;
+
+  const handleAdd = () => {
+    if (isOutOfStock) {
+      toast.error(`${product.name} is out of stock`);
+      return;
+    }
+    addToCart(product, qty);
+    toast.success(`${qty}x ${product.name} added to cart!`);
+  };
+
+  const handleImageClick = () => {
+    setShowImageModal(true);
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-[#FFFDF2] text-[#1F2937]">
+      <UserHeader />
+      <main className="container py-8 flex-1">
+        <Link to="/catalog" className="inline-flex items-center gap-1 text-sm text-red-700 hover:text-red-900 transition-colors mb-6 font-semibold">
+          <ArrowLeft className="h-4 w-4" /> Back to Shop
+        </Link>
+
+        <div className="grid md:grid-cols-2 gap-8 mb-16">
+          <div className="rounded-2xl overflow-hidden bg-[#FDFBF7] border border-[#FED7AA] aspect-square cursor-pointer p-4 flex items-center justify-center" onClick={handleImageClick}>
+            <img
+              src={isOutOfStock ? '/logo.png' : (product.image || '/logo.png')}
+              alt={product.name}
+              className="w-full h-full object-contain hover:scale-105 transition-transform duration-300 mix-blend-multiply"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/logo.png';
+              }}
+            />
+          </div>
+
+          <div className="space-y-4">
+            <p className="text-sm text-red-700 font-semibold uppercase">{product.brand}</p>
+            <h1 className="product-title-font text-3xl font-black text-red-900">{product.name}</h1>
+
+
+
+            <div className="flex flex-col md:flex-row md:items-center gap-3 pt-2">
+              <div className="flex items-baseline gap-3">
+                <span className="text-3xl font-bold text-red-700">₹{discountPrice}</span>
+                {discount > 0 && (
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xl text-red-600 line-through font-semibold">₹{product.price}</span>
+                    <DiscountTag discount={discount} className="w-14 sm:w-16 h-auto" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <p className="text-red-800">{product.description}</p>
+
+            <div className="space-y-2 text-sm text-red-800">
+              <p><span className="font-semibold">Availability:</span> {!isOutOfStock ? <span className="text-green-600 font-bold">In Stock ({stockVal} left)</span> : <span className="text-red-600 font-bold">Out of Stock</span>}</p>
+            </div>
+
+            {/* View Included Combo Products Button */}
+            {((product.comboProducts && product.comboProducts.length > 0) || product.name.toLowerCase().includes('combo') || product.name.toLowerCase().includes('pack')) && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowComboModal(true)}
+                  className="w-full py-3 px-4 bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-600 hover:to-amber-800 text-white font-black text-sm rounded-xl shadow-md flex items-center justify-center gap-2 transition-all transform hover:scale-[1.01] active:scale-[0.99] cursor-pointer border border-amber-400/30"
+                >
+                  <PackageCheck className="w-4 h-4 text-amber-100" />
+                  <span>🎁 View Included Combo Products {product.comboProducts?.length ? `(${product.comboProducts.length} Items)` : ''}</span>
+                </button>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-4">
+              <div className="flex items-center border-2 border-[#2563EB]/40 rounded-lg">
+                <button onClick={() => setQty(Math.max(1, qty - 1))} className="p-2 hover:bg-blue-50 transition-colors text-[#2563EB]" disabled={isOutOfStock}><Minus className="h-4 w-4" /></button>
+                <span className="px-4 font-semibold text-[#1F2937]">{qty}</span>
+                <button onClick={() => setQty(Math.min(stockVal, qty + 1))} className="p-2 hover:bg-blue-50 transition-colors text-[#2563EB]" disabled={isOutOfStock || qty >= stockVal}><Plus className="h-4 w-4" /></button>
+              </div>
+              <Button
+                onClick={handleAdd}
+                className={`flex-1 ${isOutOfStock ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#2563EB] hover:bg-[#1D4ED8]'} text-white font-bold`}
+                disabled={isOutOfStock}
+              >
+                <ShoppingCart className="h-4 w-4 mr-2" /> {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Combo Products Modal */}
+        <ComboProductsModal
+          product={product}
+          isOpen={showComboModal}
+          onClose={() => setShowComboModal(false)}
+        />
+
+        {related.length > 0 && (
+          <section>
+            <h2 className="font-display text-2xl font-bold mb-6 text-red-900">Related Products</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
+              {related.map((p) => <ProductCard key={p.id} product={p} />)}
+            </div>
+          </section>
+        )}
+      </main>
+
+      {/* Image Lightbox Modal */}
+      {showImageModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="relative max-w-4xl w-full">
+            <img
+              src={(product.storeStockPieces || 0) <= 0 ? '/logo.png' : (product.image || '/logo.png')}
+              alt={product.name}
+              className="w-full h-auto rounded-lg"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/logo.png';
+              }}
+            />
+            <button
+              onClick={() => setShowImageModal(false)}
+              className="absolute top-2 right-2 md:top-4 md:right-4 bg-white rounded-full p-2 hover:bg-gray-200 transition-colors shadow-lg"
+              aria-label="Close"
+            >
+              <X className="h-6 w-6 text-black" />
+            </button>
+            <p className="text-white text-center mt-4 text-sm md:text-base">{product.name}</p>
+          </div>
+        </div>
+      )}
+      <UserFooter />
+    </div>
+  );
+};
+
+export default ProductDetail;

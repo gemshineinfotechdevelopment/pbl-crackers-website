@@ -1,0 +1,97 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
+
+const AdminLogin = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { login, isAuthenticated, isAdmin } = useAuth();
+
+  // Redirect if already logged in as admin
+  useEffect(() => {
+    if (isAuthenticated && isAdmin) {
+      navigate("/admin");
+    }
+  }, [isAuthenticated, isAdmin, navigate]);
+
+  if (isAuthenticated && isAdmin) {
+    return null;
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !password) {
+      toast.error("Please enter email and password");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await login(email.trim(), password.trim());
+      toast.success("Admin login successful!");
+      navigate("/admin");
+    } catch (error: any) {
+      toast.error(error.message || "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="admin-scope min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-red-50 p-4">
+      <Card className="w-full max-w-md shadow-lg">
+        <div className="p-8">
+          <div className="text-center mb-8">
+            <span className="text-5xl mb-4 block">🎆</span>
+            <h1 className="font-display text-2xl font-bold">Admin Panel</h1>
+            <p className="text-sm text-muted-foreground mt-2">Cracker Hub Administration</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Email</label>
+              <Input
+                type="email"
+                placeholder="cracker@PBL.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+                className="mt-2"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Password</label>
+              <Input
+                type="password"
+                placeholder="Your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                className="mt-2"
+              />
+            </div>
+
+            <Button 
+              type="submit" 
+              className="w-full mt-6 bg-red-600 hover:bg-red-700 text-white font-bold" 
+              disabled={loading}
+              size="lg"
+            >
+              {loading ? "Signing in..." : "Sign In"}
+            </Button>
+          </form>
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+export default AdminLogin;
