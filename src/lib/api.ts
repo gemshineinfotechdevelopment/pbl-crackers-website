@@ -65,9 +65,9 @@ async function fetchJSON<T>(path: string, method: string = 'GET', body?: any): P
     try {
       const response = await fetch(url, options);
       const contentType = response.headers.get('content-type') || '';
-      // If server returned 200 OK HTML (SPA fallback), skip and try next API URL
-      if (response.ok && contentType.includes('text/html') && isLocalhost) {
-        lastError = new Error(`HTML response received for ${url}`);
+      // If server returned HTML (SPA fallback or error page), skip/record error instead of JSON crash
+      if (response.ok && contentType.includes('text/html')) {
+        lastError = new Error(`HTML response received for API request: ${url}. Verify backend API URL / proxy.`);
         continue;
       }
       res = response;

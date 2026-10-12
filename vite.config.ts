@@ -32,4 +32,15 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          "pdf-tools": ["jspdf", "jspdf-autotable", "html2canvas"],
+        },
+      },
+    },
+  },
 }));
