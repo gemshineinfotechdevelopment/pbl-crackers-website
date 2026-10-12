@@ -191,12 +191,12 @@ const CartDrawer = () => {
     if (!validateForm()) return;
 
     if (isOtherState && estimatedTotal <= otherMinPurchase) {
-      toast.error(`For delivery to ${formData.state}, order amount must be at least 1 rupee higher than ₹${otherMinPurchase.toLocaleString('en-IN')} (Minimum required: ₹${(otherMinPurchase + 1).toLocaleString('en-IN')}).`);
+      toast.error(`For delivery to ${formData.state}, the order amount must be more than ₹${otherMinPurchase.toLocaleString('en-IN')}.`);
       return;
     }
 
     if (isTamilNadu && estimatedTotal <= tnMinPurchase) {
-      toast.error(`For delivery to Tamil Nadu, order amount must be more than ₹${tnMinPurchase.toLocaleString('en-IN')} (Minimum required: ₹${(tnMinPurchase + 1).toLocaleString('en-IN')}).`);
+      toast.error(`For delivery to Tamil Nadu, the order amount must be more than ₹${tnMinPurchase.toLocaleString('en-IN')}.`);
       return;
     }
 
@@ -820,9 +820,9 @@ const CartDrawer = () => {
                   </p>
                   <p className="text-gray-700 text-[11px]">
                     {isOtherState ? (
-                      <>For delivery outside Tamil Nadu (<b>{formData.state}</b>), amount must be at least 1 rupee higher than ₹{otherMinPurchase.toLocaleString('en-IN')} (Minimum required: <b className="text-emerald-700 font-black">₹{(otherMinPurchase + 1).toLocaleString('en-IN')}</b>).</>
+                      <>For delivery outside Tamil Nadu (<b>{formData.state}</b>), the order amount must be more than <b>₹{otherMinPurchase.toLocaleString('en-IN')}</b>.</>
                     ) : (
-                      <>For delivery to <b>{formData.state}</b>, estimated total must be more than ₹{tnMinPurchase.toLocaleString('en-IN')} (Minimum required: <b className="text-emerald-700 font-black">₹{(tnMinPurchase + 1).toLocaleString('en-IN')}</b>).</>
+                      <>For delivery to <b>{formData.state}</b>, the order amount must be more than <b>₹{tnMinPurchase.toLocaleString('en-IN')}</b>.</>
                     )}
                   </p>
                   <p className="font-extrabold text-[#2563EB] text-[11px]">

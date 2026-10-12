@@ -1,6 +1,6 @@
 import companyLogo from "@/assets/logo.png";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Package, FolderTree, ShoppingBag, Users, Settings, ArrowLeft, LogOut, Menu, Tag, BarChart3, FileText, Image } from "lucide-react";
+import { LayoutDashboard, Package, FolderTree, ShoppingBag, Users, Settings, ArrowLeft, LogOut, Menu, Tag, FileText, Image } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
@@ -12,7 +12,6 @@ const navItems = [
   { label: "Categories", icon: FolderTree, href: "/admin/categories" },
   { label: "Orders", icon: ShoppingBag, href: "/admin/orders" },
   { label: "Customers", icon: Users, href: "/admin/customers" },
-  { label: "Reports", icon: BarChart3, href: "/admin/reports" },
   { label: "Content", icon: Settings, href: "/admin/content" },
   { label: "Price List", icon: FileText, href: "/admin/price-list" },
 ];

@@ -32,7 +32,6 @@ import AdminOrders from "./pages/admin/AdminOrders";
 import AdminCategories from "./pages/admin/AdminCategories";
 import AdminCustomers from "./pages/admin/AdminCustomers";
 import AdminChitScheme from "./pages/admin/AdminChitScheme";
-import AdminReports from "./pages/admin/AdminReports";
 import AdminContent from "./pages/admin/AdminContent";
 import AdminPriceList from "./pages/admin/AdminPriceList";
 
@@ -160,11 +159,7 @@ const App = () => (
                   />
                   <Route
                     path="/admin/reports"
-                    element={
-                      <ProtectedRoute>
-                        <AdminReports />
-                      </ProtectedRoute>
-                    }
+                    element={<Navigate to="/admin" replace />}
                   />
                   <Route
                     path="/admin/page-content"

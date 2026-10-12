@@ -235,12 +235,12 @@ const Cart: React.FC<CartProps> = ({ defaultStep }) => {
     if (!validateForm()) return;
 
     if (isOtherState && estimatedTotal <= otherMinPurchase) {
-      toast.error(`For delivery to ${formData.state}, order amount must be at least 1 rupee higher than ₹${otherMinPurchase.toLocaleString('en-IN')} (Minimum required: ₹${(otherMinPurchase + 1).toLocaleString('en-IN')}).`);
+      toast.error(`For delivery to ${formData.state}, the order amount must be more than ₹${otherMinPurchase.toLocaleString('en-IN')}.`);
       return;
     }
 
     if (isTamilNadu && estimatedTotal <= tnMinPurchase) {
-      toast.error(`For delivery to Tamil Nadu, order amount must be more than ₹${tnMinPurchase.toLocaleString('en-IN')} (Minimum required: ₹${(tnMinPurchase + 1).toLocaleString('en-IN')}).`);
+      toast.error(`For delivery to Tamil Nadu, the order amount must be more than ₹${tnMinPurchase.toLocaleString('en-IN')}.`);
       return;
     }
 
@@ -860,11 +860,11 @@ const Cart: React.FC<CartProps> = ({ defaultStep }) => {
                             <p className="text-xs text-gray-700 font-semibold leading-relaxed max-w-md mx-auto">
                               {isOtherState ? (
                                 <>
-                                  For delivery outside Tamil Nadu (<strong className="text-gray-900 font-black">{formData.state}</strong>), the order amount must be at least 1 rupee higher than the other-state minimum of <strong className="text-[#2563EB] font-black">₹{otherMinPurchase.toLocaleString('en-IN')}</strong> (Minimum required: <strong className="text-emerald-700 font-black">₹{(otherMinPurchase + 1).toLocaleString('en-IN')}</strong>).
+                                  For delivery outside Tamil Nadu (<strong className="text-gray-900 font-black">{formData.state}</strong>), the order amount must be more than <strong className="text-[#2563EB] font-black">₹{otherMinPurchase.toLocaleString('en-IN')}</strong>.
                                 </>
                               ) : (
                                 <>
-                                  For delivery to <strong className="text-gray-900 font-black">{formData.state || "Tamil Nadu"}</strong>, the estimated total must be more than the minimum requirement of <strong className="text-[#2563EB] font-black">₹{tnMinPurchase.toLocaleString('en-IN')}</strong> (Minimum required: <strong className="text-emerald-700 font-black">₹{(tnMinPurchase + 1).toLocaleString('en-IN')}</strong>).
+                                  For delivery to <strong className="text-gray-900 font-black">{formData.state || "Tamil Nadu"}</strong>, the order amount must be more than <strong className="text-[#2563EB] font-black">₹{tnMinPurchase.toLocaleString('en-IN')}</strong>.
                                 </>
                               )}
                             </p>
