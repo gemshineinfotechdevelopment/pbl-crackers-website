@@ -64,9 +64,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (storedToken) {
-        const rawBase = isLocalhost ? "http://localhost:5005" : ((import.meta.env.VITE_API_URL as string) || "");
+        const rawBase = isLocalhost ? "http://localhost:5019" : ((import.meta.env.VITE_API_URL as string) || "");
         const primaryBase = rawBase.trim().replace(/\/+$/, "");
-        const verifyUrl = `${primaryBase}/api/auth/verify`;
+        const verifyUrl = primaryBase.endsWith('/api') ? `${primaryBase}/auth/verify` : `${primaryBase}/api/auth/verify`;
 
         try {
           const res = await fetch(verifyUrl, {
@@ -174,15 +174,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = async (email: string, password: string) => {
-    const rawBase = isLocalhost ? "http://localhost:5005" : ((import.meta.env.VITE_API_URL as string) || "");
+    const rawBase = isLocalhost ? "http://localhost:5019" : ((import.meta.env.VITE_API_URL as string) || "");
     const primaryBase = rawBase.trim().replace(/\/+$/, "");
+    const loginEndpoint = primaryBase.endsWith('/api') ? `${primaryBase}/auth/login` : `${primaryBase}/api/auth/login`;
     const urlsToTry = isLocalhost
       ? [
-          "http://localhost:5005/api/auth/login",
-          "http://127.0.0.1:5005/api/auth/login",
-          `${primaryBase}/api/auth/login`,
+          "http://localhost:5019/api/auth/login",
+          "http://127.0.0.1:5019/api/auth/login",
+          loginEndpoint,
         ].filter((v, i, a) => a.indexOf(v) === i && v.trim() !== "")
-      : [`${primaryBase}/api/auth/login`].filter((v) => v.trim() !== "");
+      : [loginEndpoint].filter((v) => v.trim() !== "");
 
     let data: any = null;
     let lastError: any = null;

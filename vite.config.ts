@@ -8,12 +8,12 @@ export default defineConfig(({ mode }) => ({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:5005",
+        target: "http://localhost:5019",
         changeOrigin: true,
         secure: false,
       },
       "/uploads": {
-        target: "http://localhost:5005",
+        target: "http://localhost:5019",
         changeOrigin: true,
         secure: false,
       },

@@ -40,6 +40,8 @@ app.use('/api', (req, res, next) => {
 
 // ===== CORS MUST BE FIRST =====
 const allowedOrigins = [
+  'https://pbl-crackers.gemshine.tech',
+  'http://pbl-crackers.gemshine.tech',
   'https://saiyogicrackers.com',
   'https://www.saiyogicrackers.com',
   'https://saiyogi-crackers.gemshine.tech',
@@ -48,7 +50,8 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5000',
   'http://localhost:5005',
-  'http://127.0.0.1:5005',
+  'http://localhost:5019',
+  'http://127.0.0.1:5019',
   'http://localhost:8080',
   'http://localhost:8081',
 ];
@@ -173,7 +176,7 @@ app.use(errorHandler);
 import { exec } from 'child_process';
 import os from 'os';
 
-const PORT = process.env.PORT || 5005;
+const PORT = process.env.PORT || 5019;
 
 const execCmd = (cmd) => new Promise((resolve, reject) => {
   exec(cmd, { windowsHide: true }, (err, stdout, stderr) => {

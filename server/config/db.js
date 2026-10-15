@@ -129,7 +129,7 @@ const connectDB = async () => {
 
   // Fallback to local 127.0.0.1:27017
   try {
-    const localUri = "mongodb://127.0.0.1:27017/saiyogi";
+    const localUri = process.env.LOCAL_MONGODB_URI || "mongodb://127.0.0.1:27017/pbl_crackers_db";
     const conn = await mongoose.connect(localUri, { serverSelectionTimeoutMS: 4000 });
     logger.info(`MongoDB Connected locally: ${conn.connection.host} / Database: ${conn.connection.name}`);
     await autoSeedIfEmpty();

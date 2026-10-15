@@ -1,11 +1,21 @@
 import { Product, Category, Order } from "@/data/products";
 
+export const normalizeApiUrl = (baseUrl: string, endpoint: string): string => {
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  if (!baseUrl) return cleanEndpoint;
+  const cleanBase = baseUrl.replace(/\/+$/, '');
+  if (cleanBase.endsWith('/api') && cleanEndpoint.startsWith('/api/')) {
+    return `${cleanBase}${cleanEndpoint.slice(4)}`;
+  }
+  return `${cleanBase}${cleanEndpoint}`;
+};
+
 const isLocalhost = typeof window !== 'undefined' && 
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
 const rawEnvUrl = (import.meta.env.VITE_API_URL as string) || "";
 export const API_BASE_URL = isLocalhost
-  ? "http://localhost:5005" 
+  ? "http://localhost:5019" 
   : rawEnvUrl.trim().replace(/\/+$/, "");
 
 function resolveAuthToken(path: string): string | null {
@@ -52,11 +62,11 @@ async function fetchJSON<T>(path: string, method: string = 'GET', body?: any): P
     ? [path]
     : isLocalhost
       ? [
-          `http://127.0.0.1:5005${cleanPath}`,
-          `http://localhost:5005${cleanPath}`,
-          `${API_BASE_URL}${cleanPath}`,
+          `http://127.0.0.1:5019${cleanPath}`,
+          `http://localhost:5019${cleanPath}`,
+          normalizeApiUrl(API_BASE_URL, cleanPath),
         ].filter((v, i, a) => a.indexOf(v) === i && !!v)
-      : [`${API_BASE_URL}${cleanPath}`];
+      : [normalizeApiUrl(API_BASE_URL, cleanPath)];
 
   let res: Response | null = null;
   let lastError: any = null;
@@ -609,11 +619,11 @@ export async function uploadImageToCloudinary(fileOrBase64: File | string, folde
     ? [path]
     : isLocalhost
       ? [
-          `http://127.0.0.1:5005${path}`,
-          `http://localhost:5005${path}`,
-          `${API_BASE_URL}${path}`,
+          `http://127.0.0.1:5019${path}`,
+          `http://localhost:5019${path}`,
+          normalizeApiUrl(API_BASE_URL, path),
         ].filter((v, i, a) => a.indexOf(v) === i && !!v)
-      : [`${API_BASE_URL}${path}`];
+      : [normalizeApiUrl(API_BASE_URL, path)];
 
   let res: Response | null = null;
   let lastError: any = null;
